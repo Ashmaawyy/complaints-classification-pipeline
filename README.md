@@ -50,7 +50,9 @@ I ordered my laptop two weeks ago, and it still hasn't arrived. Customer service
 **Output (Validated Schema):**
 ```json
 {
-  "summary": "Customer is unhappy due to delayed laptop delivery and unhelpful support."
+  "summary": "Customer is unhappy due to delayed laptop delivery and unhelpful support.",
+  "sentiment": "Negative",
+  "Urgency": "High"
 }
 ```
 
