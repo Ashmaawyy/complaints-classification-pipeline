@@ -6,6 +6,8 @@ from langchain.prompts import PromptTemplate
 from langchain.schema import BaseOutputParser
 from pydantic import BaseModel, Field, ValidationError
 from transformers import pipeline
+from dotenv import load_dotenv
+from pathlib import Path
 import os
 
 # Setup logging with emojis
@@ -14,6 +16,10 @@ logging.basicConfig(
     format="🕒 %(asctime)s - 📍 %(name)s - [%(levelname)s]  %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
+
+# Load environment variables first
+env_path = Path('.') / 'keys.env'
+load_dotenv(env_path)
 
 # Environment variable for OpenAI API
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
@@ -40,7 +46,7 @@ prompt = PromptTemplate(
 )
 
 # Define the OpenAI LLM
-llm = OpenAI(temperature=0)
+llm = OpenAI(temperature=0, model="gpt-3.5-turbo", max_tokens=150)
 
 # Fallback Hugging Face model for sentiment
 sentiment_model = pipeline("sentiment-analysis")
