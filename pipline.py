@@ -16,7 +16,7 @@ logging.basicConfig(
 )
 
 # Environment variable for OpenAI API
-os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "your-api-key")
+os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 
 # Define Pydantic schema
 class ComplaintInfo(BaseModel):
