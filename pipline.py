@@ -1,6 +1,6 @@
 import logging
 from typing import Optional
-from langchain.llms import OpenAI
+from langchain_openai import OpenAI
 from langchain.output_parsers import PydanticOutputParser
 from langchain.prompts import PromptTemplate
 from langchain.schema import BaseOutputParser
