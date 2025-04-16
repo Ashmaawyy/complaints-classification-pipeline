@@ -92,4 +92,4 @@ if __name__ == "__main__":
     )
     final_result = classify_complaint(sample_complaint)
     logging.info("🎉 Classification completed:")
-    logging.info(final_result.json(indent=2))
+    logging.info(final_result.model_dump_json(indent=2))
