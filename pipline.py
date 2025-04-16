@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Optional
 from langchain_openai import OpenAI
 from langchain.output_parsers import PydanticOutputParser
@@ -8,7 +9,6 @@ from pydantic import BaseModel, Field, ValidationError
 from transformers import pipeline
 from dotenv import load_dotenv
 from pathlib import Path
-import os
 
 # Setup logging with emojis
 logging.basicConfig(
@@ -49,7 +49,7 @@ prompt = PromptTemplate(
 llm = OpenAI(temperature=0, model="gpt-3.5-turbo", max_tokens=150)
 
 # Fallback Hugging Face model for sentiment
-sentiment_model = pipeline("sentiment-analysis")
+sentiment_model = pipeline('sentiment-analysis', model='distilbert/distilbert-base-uncased-finetuned-sst-2-english', revision='714eb0f')
 
 def analyze_complaint_with_openai(complaint: str) -> Optional[ComplaintInfo]:
     try:
