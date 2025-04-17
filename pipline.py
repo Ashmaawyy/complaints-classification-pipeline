@@ -2,6 +2,7 @@ import logging
 import os
 from typing import Optional
 from langchain_openai import OpenAI
+from langchain_litellm import Litellm
 from langchain.output_parsers import PydanticOutputParser
 from langchain.prompts import PromptTemplate
 from langchain.schema import BaseOutputParser
@@ -45,10 +46,18 @@ prompt = PromptTemplate(
     partial_variables={"format_instructions": parser.get_format_instructions()},
 )
 
-# Define the OpenAI LLM
+# OpenAI LLM
 llm = OpenAI(temperature=0, model="gpt-3.5-turbo", max_tokens=150)
 
-# Fallback Hugging Face model for sentiment
+# First Fallback Litellm LLM
+litellm = Litellm(
+    temperature=0,
+    model="llama2-7b-chat",
+    max_tokens=150,
+    api_key=os.getenv("LITELLM_API_KEY"),
+)
+
+# Second Fallback Hugging Face model for sentiment
 sentiment_model = pipeline('sentiment-analysis', model='distilbert/distilbert-base-uncased-finetuned-sst-2-english', revision='714eb0f')
 
 def analyze_complaint_with_openai(complaint: str) -> Optional[ComplaintInfo]:
@@ -60,6 +69,17 @@ def analyze_complaint_with_openai(complaint: str) -> Optional[ComplaintInfo]:
         return result
     except (ValidationError, Exception) as e:
         logging.warning(f"⚠️ OpenAI LLM failed: {e}")
+        return None
+
+def analyze_complaint_with_litellm(complaint: str) -> Optional[ComplaintInfo]:
+    try:
+        logging.info("🚀 Trying analysis using Litellm LLM...")
+        chain = prompt | litellm | parser
+        result = chain.invoke({"complaint": complaint})
+        logging.info("✅ Litellm LLM analysis succeeded!")
+        return result
+    except (ValidationError, Exception) as e:
+        logging.warning(f"⚠️ Litellm LLM failed: {e}")
         return None
 
 def analyze_complaint_with_huggingface(complaint: str) -> ComplaintInfo:
@@ -85,10 +105,28 @@ def analyze_complaint_with_huggingface(complaint: str) -> ComplaintInfo:
 
 def classify_complaint(complaint: str) -> ComplaintInfo:
     logging.info("🔍 Starting complaint classification pipeline...")
-    result = analyze_complaint_with_openai(complaint)
-    if result:
+    try:
+        result = analyze_complaint_with_openai(complaint)
+        if result:
+            return result
+    except Exception as e:
+        logging.warning(f"⚠️ OpenAI LLM failed: {e}")
+    try:
+        logging.info("🔄 OpenAI LLM failed, retrying with Litellm...")
+        result = analyze_complaint_with_litellm(complaint)
+        if result:
+            return result
+    except Exception as e:
+        logging.warning(f"⚠️ Litellm LLM failed: {e}")
+    
+    # If both LLMs fail, fallback to Hugging Face
+    logging.info("🔄 Both LLMs failed, falling back to Hugging Face...")
+    try:
+        result = analyze_complaint_with_huggingface(complaint)
         return result
-    return analyze_complaint_with_huggingface(complaint)
+    except Exception as e:
+        logging.error(f"⚠️ Hugging Face analysis failed: {e}")
+        return None
 
 # Main entry point
 if __name__ == "__main__":
