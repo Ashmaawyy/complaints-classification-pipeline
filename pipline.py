@@ -54,7 +54,7 @@ litellm = Litellm(
     temperature=0,
     model="llama2-7b-chat",
     max_tokens=150,
-    api_key=os.getenv("LITELLM_API_KEY"),
+    api_key=os.getenv("LLMA_LITELLM_API_KEY"),
 )
 
 # Second Fallback Hugging Face model for sentiment
