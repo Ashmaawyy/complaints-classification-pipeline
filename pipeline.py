@@ -63,24 +63,32 @@ prompt = PromptTemplate(
 )
 
 # OpenAI LLM
-llm = OpenAI(
-    temperature=0,
-    model="gpt-3.5-turbo",
-    max_tokens=150,
-    api_key=os.getenv("LLMA_OPENAI_API_KEY")
-)
+try:
+    llm = OpenAI(
+        temperature=0,
+        model="gpt-3.5-turbo",
+        max_tokens=150,
+        api_key=os.getenv("LLMA_OPENAI_API_KEY")
+    )
+except Exception as e:
+    logging.error(f"❌ Failed to initialize OpenAI LLM: {e}")
+    llm = None
 
 # Backup LLMA Litellm LLM
-litellm = Litellm(
-    temperature=0,
-    model="llama2-7b-chat",
-    max_tokens=150,
-    api_key=os.getenv("LLMA_LITELLM_API_KEY"),
-)
+try:
+    litellm = Litellm(
+        temperature=0,
+        model="llama2-7b-chat",
+        max_tokens=150,
+        api_key=os.getenv("LLMA_LITELLM_API_KEY"),
+    )
+except Exception as e:
+    logging.error(f"❌ Failed to initialize Litellm LLM: {e}")
+    litellm = None
 
 # Fallback Hugging Face model for sentiment
 try:
-    sentiment_model = pipeline(
+    huggingface_sentiment_model = pipeline(
         task='sentiment-analysis',
         model='distilbert/distilbert-base-uncased-finetuned-sst-2-english',
         revision='714eb0f'
@@ -90,6 +98,13 @@ except Exception as e:
     sentiment_model = None
 
 def analyze_complaint_with_openai(complaint: str) -> Optional[ComplaintInfo]:
+    """
+    Main Function: Analyze the complaint using OpenAI LLM.
+    """
+    
+    if not llm:
+        logging.error("❌ OpenAI model is not initialized.")
+        return None
     try:
         logging.info("🚀 Trying analysis using OpenAI LLM...")
         chain = prompt | llm | parser
@@ -101,6 +116,13 @@ def analyze_complaint_with_openai(complaint: str) -> Optional[ComplaintInfo]:
         return None
 
 def analyze_complaint_with_litellm(complaint: str) -> Optional[ComplaintInfo]:
+    """
+    Backup Function: Analyze the complaint using Litellm LLM.
+    """
+
+    if not litellm:
+        logging.error("❌ Litellm model is not initialized.")
+        return None
     try:
         logging.info("🚀 Trying analysis using Litellm LLM...")
         chain = prompt | litellm | parser
@@ -112,7 +134,11 @@ def analyze_complaint_with_litellm(complaint: str) -> Optional[ComplaintInfo]:
         return None
 
 def analyze_complaint_with_huggingface(complaint: str) -> Optional[ComplaintInfo]:
-    if not sentiment_model:
+    """
+    Fallback Function: Analyze the complaint using Hugging Face Transformers pipeline.
+    """
+
+    if not huggingface_sentiment_model:
         logging.error("❌ Hugging Face model is not initialized.")
         return None
     try:
@@ -139,6 +165,13 @@ def analyze_complaint_with_huggingface(complaint: str) -> Optional[ComplaintInfo
         return None
 
 def classify_complaint(complaint: str) -> Optional[ComplaintInfo]:
+    """
+    Classify the complaint using the available LLMs in order of preference.
+    """
+    if not complaint:
+        logging.error("❌ No complaint provided.")
+        return None
+    
     logging.info(f"🔍 Starting classification for complaint: {complaint[:50]}...")
     analysis_methods: List[Callable[[str], Optional[ComplaintInfo]]] = [
         analyze_complaint_with_openai,
