@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Pipeline for analyzing customer complaints using multiple LLMs with a fallback mechanism.
+Pipeline for analyzing customer complaints using OpenAI LLM as main LLM,
+LLMA as a backup LLM,
+and a huggingface transformer as a fallback mechanism.
 """
 # Import statements
 import logging
