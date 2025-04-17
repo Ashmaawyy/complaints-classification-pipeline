@@ -168,6 +168,7 @@ def classify_complaint(complaint: str) -> Optional[ComplaintInfo]:
     """
     Classify the complaint using the available LLMs in order of preference.
     """
+
     if not complaint:
         logging.error("❌ No complaint provided.")
         return None
