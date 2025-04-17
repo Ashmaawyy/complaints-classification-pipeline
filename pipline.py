@@ -60,7 +60,11 @@ litellm = Litellm(
     )
 
 # Second Fallback Hugging Face model for sentiment
-sentiment_model = pipeline('sentiment-analysis', model='distilbert/distilbert-base-uncased-finetuned-sst-2-english', revision='714eb0f')
+sentiment_model = pipeline(
+    task='sentiment-analysis',
+    model='distilbert/distilbert-base-uncased-finetuned-sst-2-english',
+    revision='714eb0f'
+    )
 
 def analyze_complaint_with_openai(complaint: str) -> Optional[ComplaintInfo]:
     try:
