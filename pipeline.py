@@ -70,7 +70,7 @@ llm = OpenAI(
     api_key=os.getenv("LLMA_OPENAI_API_KEY")
 )
 
-# Backup Litellm LLM
+# Backup LLMA Litellm LLM
 litellm = Litellm(
     temperature=0,
     model="llama2-7b-chat",
@@ -78,7 +78,7 @@ litellm = Litellm(
     api_key=os.getenv("LLMA_LITELLM_API_KEY"),
 )
 
-# Second Fallback Hugging Face model for sentiment
+# Fallback Hugging Face model for sentiment
 try:
     sentiment_model = pipeline(
         task='sentiment-analysis',
