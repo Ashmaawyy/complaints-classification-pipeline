@@ -22,9 +22,6 @@ logging.basicConfig(
 env_path = Path('.') / 'keys.env'
 load_dotenv(env_path)
 
-# Environment variable for OpenAI API
-os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
-
 # Define Pydantic schema
 class ComplaintInfo(BaseModel):
     summary: str = Field(description="Brief summary of the complaint")
@@ -47,7 +44,12 @@ prompt = PromptTemplate(
 )
 
 # OpenAI LLM
-llm = OpenAI(temperature=0, model="gpt-3.5-turbo", max_tokens=150)
+llm = OpenAI(
+    temperature=0,
+    model="gpt-3.5-turbo",
+    max_tokens=150,
+    api_key=os.getenv("LLMA_OPENAI_API_KEY")
+    )
 
 # First Fallback Litellm LLM
 litellm = Litellm(
@@ -55,7 +57,7 @@ litellm = Litellm(
     model="llama2-7b-chat",
     max_tokens=150,
     api_key=os.getenv("LLMA_LITELLM_API_KEY"),
-)
+    )
 
 # Second Fallback Hugging Face model for sentiment
 sentiment_model = pipeline('sentiment-analysis', model='distilbert/distilbert-base-uncased-finetuned-sst-2-english', revision='714eb0f')
