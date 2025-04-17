@@ -2,10 +2,10 @@
 """
 Pipeline for analyzing customer complaints using multiple LLMs with a fallback mechanism.
 """
-# import statements
+# Import statements
 import logging
 import os
-from typing import Optional
+from typing import Optional, List, Callable
 from langchain_openai import OpenAI
 from langchain_litellm import Litellm
 from langchain.output_parsers import PydanticOutputParser
@@ -23,7 +23,19 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 
-# Load environment variables first
+# Validate environment variables
+def validate_env_vars():
+    required_vars = ["LLMA_OPENAI_API_KEY", "LLMA_LITELLM_API_KEY"]
+    for var in required_vars:
+        if not os.getenv(var):
+            logging.error(f"❌ Missing required environment variable: {var}")
+            raise EnvironmentError(f"Environment variable {var} is not set.")
+    
+    logging.info("✅ All required environment variables are set.")
+
+validate_env_vars()
+
+# Load environment variables
 env_path = Path('.') / 'keys.env'
 load_dotenv(env_path)
 
@@ -54,27 +66,28 @@ llm = OpenAI(
     model="gpt-3.5-turbo",
     max_tokens=150,
     api_key=os.getenv("LLMA_OPENAI_API_KEY")
-    )
+)
 
-# First Fallback Litellm LLM
+# Backup Litellm LLM
 litellm = Litellm(
     temperature=0,
     model="llama2-7b-chat",
     max_tokens=150,
     api_key=os.getenv("LLMA_LITELLM_API_KEY"),
-    )
+)
 
 # Second Fallback Hugging Face model for sentiment
-sentiment_model = pipeline(
-    task='sentiment-analysis',
-    model='distilbert/distilbert-base-uncased-finetuned-sst-2-english',
-    revision='714eb0f'
+try:
+    sentiment_model = pipeline(
+        task='sentiment-analysis',
+        model='distilbert/distilbert-base-uncased-finetuned-sst-2-english',
+        revision='714eb0f'
     )
+except Exception as e:
+    logging.error(f"❌ Failed to initialize Hugging Face model: {e}")
+    sentiment_model = None
 
 def analyze_complaint_with_openai(complaint: str) -> Optional[ComplaintInfo]:
-    """
-    Main Function: Analyze complaint using OpenAI LLM.
-    """
     try:
         logging.info("🚀 Trying analysis using OpenAI LLM...")
         chain = prompt | llm | parser
@@ -86,9 +99,6 @@ def analyze_complaint_with_openai(complaint: str) -> Optional[ComplaintInfo]:
         return None
 
 def analyze_complaint_with_litellm(complaint: str) -> Optional[ComplaintInfo]:
-    """
-    Backup Function: Analyze complaint using Litellm LLM.
-    """
     try:
         logging.info("🚀 Trying analysis using Litellm LLM...")
         chain = prompt | litellm | parser
@@ -99,17 +109,16 @@ def analyze_complaint_with_litellm(complaint: str) -> Optional[ComplaintInfo]:
         logging.warning(f"⚠️ Litellm LLM failed: {e}")
         return None
 
-def analyze_complaint_with_huggingface(complaint: str) -> ComplaintInfo:
-    """
-    Fallback Function: Analyze complaint using Hugging Face Transformers pipeline.
-    """
+def analyze_complaint_with_huggingface(complaint: str) -> Optional[ComplaintInfo]:
+    if not sentiment_model:
+        logging.error("❌ Hugging Face model is not initialized.")
+        return None
     try:
         logging.info("🤖 Falling back to Hugging Face Transformers pipeline...")
         sentiment_result = sentiment_model(complaint)[0]
 
         sentiment = sentiment_result["label"]
         score = sentiment_result["score"]
-        #logging.info(f"📝 Using basic heuristics for urgency: Sentiment={sentiment}, Score={score:.2f}")
 
         if sentiment == "POSITIVE":
             urgency = "Low"
@@ -123,35 +132,28 @@ def analyze_complaint_with_huggingface(complaint: str) -> ComplaintInfo:
             sentiment=sentiment.title(),
             urgency=urgency
         )
-    
     except (ValidationError, Exception) as e:
         logging.error(f"⚠️ Hugging Face analysis failed: {e}")
         return None
 
-def classify_complaint(complaint: str) -> ComplaintInfo:
-    logging.info("🔍 Starting complaint classification pipeline...")
-    try:
-        result = analyze_complaint_with_openai(complaint)
-        if result:
-            return result
-    except Exception as e:
-        logging.warning(f"⚠️ OpenAI LLM failed: {e}")
-    try:
-        logging.info("🔄 OpenAI LLM failed, retrying with Litellm...")
-        result = analyze_complaint_with_litellm(complaint)
-        if result:
-            return result
-    except Exception as e:
-        logging.warning(f"⚠️ Litellm LLM failed: {e}")
-    
-    # If both LLMs fail, fallback to Hugging Face
-    logging.info("🔄 Both LLMs failed, falling back to Hugging Face...")
-    try:
-        result = analyze_complaint_with_huggingface(complaint)
-        return result
-    except Exception as e:
-        logging.error(f"⚠️ Hugging Face analysis failed: {e}")
-        return None
+def classify_complaint(complaint: str) -> Optional[ComplaintInfo]:
+    logging.info(f"🔍 Starting classification for complaint: {complaint[:50]}...")
+    analysis_methods: List[Callable[[str], Optional[ComplaintInfo]]] = [
+        analyze_complaint_with_openai,
+        analyze_complaint_with_litellm,
+        analyze_complaint_with_huggingface,
+    ]
+
+    for method in analysis_methods:
+        try:
+            result = method(complaint)
+            if result:
+                return result
+        except Exception as e:
+            logging.warning(f"⚠️ {method.__name__} failed: {e}")
+
+    logging.error("❌ All classification methods failed.")
+    return None
 
 # Main entry point
 if __name__ == "__main__":
@@ -160,5 +162,8 @@ if __name__ == "__main__":
         "My order is delayed and I’ve been charged twice. Extremely frustrating experience."
     )
     final_result = classify_complaint(sample_complaint)
-    logging.info("🎉 Classification completed:")
-    logging.info(final_result.model_dump_json(indent=2))
+    if final_result:
+        logging.info("🎉 Classification completed:")
+        logging.info(final_result.model_dump_json(indent=2))
+    else:
+        logging.error("❌ Classification failed.")
