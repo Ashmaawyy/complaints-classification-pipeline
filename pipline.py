@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+"""
+Pipeline for analyzing customer complaints using multiple LLMs with a fallback mechanism.
+"""
+# import statements
 import logging
 import os
 from typing import Optional
@@ -67,6 +72,9 @@ sentiment_model = pipeline(
     )
 
 def analyze_complaint_with_openai(complaint: str) -> Optional[ComplaintInfo]:
+    """
+    Main Function: Analyze complaint using OpenAI LLM.
+    """
     try:
         logging.info("🚀 Trying analysis using OpenAI LLM...")
         chain = prompt | llm | parser
@@ -78,6 +86,9 @@ def analyze_complaint_with_openai(complaint: str) -> Optional[ComplaintInfo]:
         return None
 
 def analyze_complaint_with_litellm(complaint: str) -> Optional[ComplaintInfo]:
+    """
+    Backup Function: Analyze complaint using Litellm LLM.
+    """
     try:
         logging.info("🚀 Trying analysis using Litellm LLM...")
         chain = prompt | litellm | parser
@@ -89,25 +100,33 @@ def analyze_complaint_with_litellm(complaint: str) -> Optional[ComplaintInfo]:
         return None
 
 def analyze_complaint_with_huggingface(complaint: str) -> ComplaintInfo:
-    logging.info("🤖 Falling back to Hugging Face Transformers pipeline...")
-    sentiment_result = sentiment_model(complaint)[0]
+    """
+    Fallback Function: Analyze complaint using Hugging Face Transformers pipeline.
+    """
+    try:
+        logging.info("🤖 Falling back to Hugging Face Transformers pipeline...")
+        sentiment_result = sentiment_model(complaint)[0]
 
-    sentiment = sentiment_result["label"]
-    score = sentiment_result["score"]
+        sentiment = sentiment_result["label"]
+        score = sentiment_result["score"]
+        #logging.info(f"📝 Using basic heuristics for urgency: Sentiment={sentiment}, Score={score:.2f}")
 
-    if sentiment == "POSITIVE":
-        urgency = "Low"
-    elif score > 0.85:
-        urgency = "High"
-    else:
-        urgency = "Medium"
+        if sentiment == "POSITIVE":
+            urgency = "Low"
+        elif score > 0.85:
+            urgency = "High"
+        else:
+            urgency = "Medium"
 
-    logging.info(f"📝 Using basic heuristics for urgency: Sentiment={sentiment}, Score={score:.2f}")
-    return ComplaintInfo(
-        summary=complaint[:100] + ("..." if len(complaint) > 100 else ""),
-        sentiment=sentiment.title(),
-        urgency=urgency
-    )
+        return ComplaintInfo(
+            summary=complaint[:100] + ("..." if len(complaint) > 100 else ""),
+            sentiment=sentiment.title(),
+            urgency=urgency
+        )
+    
+    except (ValidationError, Exception) as e:
+        logging.error(f"⚠️ Hugging Face analysis failed: {e}")
+        return None
 
 def classify_complaint(complaint: str) -> ComplaintInfo:
     logging.info("🔍 Starting complaint classification pipeline...")
